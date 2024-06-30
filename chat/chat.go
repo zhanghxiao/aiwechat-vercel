@@ -10,36 +10,35 @@ import (
 	"time"
 
 	"github.com/google/generative-ai-go/genai"
+
 	"github.com/pwh-pwh/aiwechat-vercel/db"
 	"github.com/sashabaranov/go-openai"
+
 	"github.com/pwh-pwh/aiwechat-vercel/config"
 	"github.com/silenceper/wechat/v2/officialaccount/message"
 )
 
 var actionMap = map[string]func(param, userId string) string{
-	"/1": func(param, userId string) string {
-		return config.GetWxHelpReply()
-	},
-	"/2": func(param, userId string) string {
-		return SwitchUserBot(userId, config.Bot_Type_Gpt)
-	},
-	"/3": func(param, userId string) string {
-		return SetModel("讯飞星火v3.5", userId)
-	},
-	"/4": func(param, userId string) string {
-		return SetModel("通义千问-plus", userId)
-	},
-	"/5": func(param, userId string) string {
-		return SetModel("智谱glm-4", userId)
-	},
-	"/6": func(param, userId string) string {
-		return SetModel("百度文心", userId)
-	},
-	"/7": func(param, userId string) string {
-		return GetModel("", userId)
-	},
+    config.Wx_Command_Help:      func(param, userId string) string {
+        return config.GetWxHelpReply()
+    },
+    config.Wx_Command_Gpt:       func(param, userId string) string {
+        return SetModel("gpt-3.5-turbo", userId)
+    },
+    config.Wx_Command_Spark:     func(param, userId string) string {
+        return SetModel("讯飞星火v3.5", userId)
+    },
+    config.Wx_Command_Qwen:      func(param, userId string) string {
+        return SetModel("通义千问-plus", userId)
+    },
+    config.Wx_Command_Zhipu:     func(param, userId string) string {
+        return SetModel("智谱glm-4", userId)
+    },
+    config.Wx_Command_Baidu:     func(param, userId string) string {
+        return SetModel("百度文心", userId)
+    },
+    config.Wx_Command_GetModel:  GetModel,
 }
-
 func DoAction(userId, msg string) (r string, flag bool) {
 	action, param, flag := isAction(msg)
 	if flag {
@@ -174,14 +173,11 @@ func GetCoin(param, userId string) string {
 }
 
 func SetModel(param, userId string) string {
-	botType := config.GetUserBotType(userId)
-	if botType == config.Bot_Type_Gpt || botType == config.Bot_Type_Gemini || botType == config.Bot_Type_Qwen {
-		if err := db.SetModel(userId, botType, param); err != nil {
-			return fmt.Sprintf("%s 设置model失败", botType)
-		}
-		return fmt.Sprintf("%s 设置model成功", botType)
-	}
-	return fmt.Sprintf("%s 不支持设置model", botType)
+    botType := config.GetUserBotType(userId)
+    if err := db.SetModel(userId, botType, param); err != nil {
+        return fmt.Sprintf("设置model失败")
+    }
+    return fmt.Sprintf("已切换到 %s", param)
 }
 
 func GetModel(param string, userId string) string {
@@ -278,133 +274,54 @@ func GetChatBot(botType string) BaseChat {
 			maxTokens: maxTokens,
 		}
 	default:
-		return &ErrorChat{
-			errMsg: fmt.Sprintf("unknown bot type:%s", botType),
+		return &Echo{}
+	}
+}
+
+type ChatMsg interface {
+	openai.ChatCompletionMessage | QwenMessage | SparkMessage | *genai.Content
+}
+
+func GetMsgListWithDb[T ChatMsg](botType, userId string, msg T, f func(msg T) db.Msg, f2 func(msg db.Msg) T) []T {
+	var dbList []db.Msg
+	isSupportPrompt := config.IsSupportPrompt(botType)
+	if isSupportPrompt {
+		prompt, err := db.GetPrompt(userId, botType)
+		if err == nil && prompt != "" {
+			dbList = append(dbList, db.Msg{
+				Role: "system",
+				Msg:  prompt,
+			})
 		}
 	}
-}
-
-type SimpleGptChat struct {
-	BaseChat
-	token     string
-	url       string
-	maxTokens int
-}
-
-func (s *SimpleGptChat) Chat(userID string, msg string) string {
-	return WithTimeChat(userID, msg, s.chat)
-}
-
-func (s *SimpleGptChat) chat(userID string, msg string) string {
-	gptReq := openai.ChatCompletionRequest{
-		Model:     "gpt-3.5-turbo",
-		MaxTokens: s.maxTokens,
-		Messages: []openai.ChatCompletionMessage{
-			{
-				Role:    openai.ChatMessageRoleSystem,
-				Content: config.GetSystemPrompt(userID, config.Bot_Type_Gpt),
-			},
-			{
-				Role:    openai.ChatMessageRoleUser,
-				Content: msg,
-			},
-		},
+	if db.ChatDbInstance != nil {
+		list, err := db.ChatDbInstance.GetMsgList(botType, userId)
+		if err == nil {
+			// check is contain system prompt
+			if len(list) > 0 {
+				if list[0].Role == "system" {
+					list = list[1:]
+				}
+			}
+			dbList = append(dbList, list...)
+		}
 	}
-	gptRsp, err := client.GptChatCompletions(s.token, gptReq)
-	if err != nil {
-		return err.Error()
+	dbList = append(dbList, f(msg))
+	r := make([]T, 0)
+	for _, msg := range dbList {
+		r = append(r, f2(msg))
 	}
-	return gptRsp.Choices[0].Message.Content
+	return r
 }
 
-func (s *SimpleGptChat) HandleMediaMsg(msg *message.MixMessage) string {
-	return "暂不支持此类消息哦"
-}
-
-type GeminiChat struct {
-	BaseChat
-	key       string
-	maxTokens int
-}
-
-func (s *GeminiChat) Chat(userID string, msg string) string {
-	return WithTimeChat(userID, msg, s.chat)
-}
-
-func (s *GeminiChat) chat(userID string, msg string) string {
-	client := genai.NewClient(s.key)
-	completionRequest := &genai.GenerateMessageRequest{
-		Messages: []genai.Message{
-			{
-				Author:  "system",
-				Content: config.GetSystemPrompt(userID, config.Bot_Type_Gemini),
-			},
-			{
-				Author:  "user",
-				Content: msg,
-			},
-		},
-		Temperature: 0.5,
-		TopK:        40,
-		TopP:        0.95,
+func SaveMsgListWithDb[T ChatMsg](botType, userId string, msgList []T, f func(msg T) db.Msg) {
+	if db.ChatDbInstance != nil {
+		go func() {
+			list := make([]db.Msg, 0)
+			for _, msg := range msgList {
+				list = append(list, f(msg))
+			}
+			db.ChatDbInstance.SetMsgList(botType, userId, list)
+		}()
 	}
-	response, err := client.GenerateMessage(completionRequest)
-	if err != nil {
-		return err.Error()
-	}
-	if len(response.Messages) > 0 {
-		return response.Messages[0].Content
-	} else {
-		return "response is empty"
-	}
-}
-
-func (s *GeminiChat) HandleMediaMsg(msg *message.MixMessage) string {
-	return "暂不支持此类消息哦"
-}
-
-type QwenChat struct {
-	BaseChat
-	Config    config.QwenConfig
-	maxTokens int
-}
-
-func (s *QwenChat) Chat(userID string, msg string) string {
-	return WithTimeChat(userID, msg, s.chat)
-}
-
-func (s *QwenChat) chat(userID string, msg string) string {
-	systemPrompt := config.GetSystemPrompt(userID, config.Bot_Type_Qwen)
-	rsp, err := client.QwenChat(s.Config, msg, systemPrompt, s.maxTokens)
-	if err != nil {
-		return err.Error()
-	}
-	return rsp
-}
-
-func (s *QwenChat) HandleMediaMsg(msg *message.MixMessage) string {
-	return "暂不支持此类消息哦"
-}
-
-type SparkChat struct {
-	BaseChat
-	Config    config.SparkConfig
-	maxTokens int
-}
-
-func (s *SparkChat) Chat(userID string, msg string) string {
-	return WithTimeChat(userID, msg, s.chat)
-}
-
-func (s *SparkChat) chat(userID string, msg string) string {
-	systemPrompt := config.GetSystemPrompt(userID, config.Bot_Type_Spark)
-	rsp, err := client.SparkChat(s.Config, msg, systemPrompt, s.maxTokens)
-	if err != nil {
-		return err.Error()
-	}
-	return rsp
-}
-
-func (s *SparkChat) HandleMediaMsg(msg *message.MixMessage) string {
-	return "暂不支持此类消息哦"
 }
