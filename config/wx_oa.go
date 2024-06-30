@@ -1,88 +1,93 @@
 package config
 
 import (
-	"os"
-	"strings"
+    "os"
+    "strings"
 )
 
 const (
-	Wx_Token_key           = "WX_TOKEN"
-	Wx_App_Id_key          = "WX_APP_ID"
-	Wx_App_Secret_key      = "WX_APP_SECRET"
-	Wx_Subscribe_Reply_key = "WX_SUBSCRIBE_REPLY"
-	Wx_Help_Reply_key      = "WX_HELP_REPLY"
-
-	Wx_Event_Key_Chat_Gpt_key   = "AI_CHAT_GPT"
-	Wx_Event_Key_Chat_Spark_key = "AI_CHAT_SPARK"
-	Wx_Event_Key_Chat_Qwen_key  = "AI_CHAT_QWEN"
-
-	Wx_Command_Help      = "/help"
-	Wx_Command_Gpt       = "/gpt"
-	Wx_Command_Spark     = "/spark"
-	Wx_Command_Qwen      = "/qwen"
-	Wx_Command_Gemini    = "/gemini"
-	Wx_Command_Prompt    = "/prompt"
-	Wx_Command_RmPrompt  = "/cpt"
-	Wx_Command_GetPrompt = "/getpt"
-	Wx_Command_SetModel  = "/setmodel"
-	Wx_Command_GetModel  = "/getmodel"
-	Wx_Command_Clear     = "/clear"
-
-	Wx_Todo_Add  = "/ta"
-	Wx_Todo_Del  = "/td"
-	Wx_Todo_List = "/tl"
-
-	Wx_Coin = "/cb"
+    Wx_Token_key = "WX_TOKEN"
+    Wx_App_Id_key = "WX_APP_ID"
+    Wx_App_Secret_key = "WX_APP_SECRET"
+    Wx_Subscribe_Reply_key = "WX_SUBSCRIBE_REPLY"
+    Wx_Help_Reply_key = "WX_HELP_REPLY"
+    Wx_Event_Key_Chat_Gpt_key = "AI_CHAT_GPT"
+    Wx_Event_Key_Chat_Spark_key = "AI_CHAT_SPARK"
+    Wx_Event_Key_Chat_Qwen_key = "AI_CHAT_QWEN"
+    Wx_Command_Help = "/1"
+    Wx_Command_Gpt = "/2"
+    Wx_Command_Spark = "/3"
+    Wx_Command_Qwen = "/4"
+    Wx_Command_Zhipu = "/5"
+    Wx_Command_Baidu = "/6"
+    Wx_Command_GetModel = "/7"
+    Wx_Command_Prompt = "/prompt"
+    Wx_Command_RmPrompt = "/cpt"
+    Wx_Command_GetPrompt = "/getpt"
+    Wx_Command_SetModel = "/setmodel"
+    Wx_Command_Clear = "/clear"
+    Wx_Todo_Add = "/ta"
+    Wx_Todo_Del = "/td"
+    Wx_Todo_List = "/tl"
+    Wx_Coin = "/cb"
 )
 
 var (
-	Wx_Commands = []string{Wx_Command_Help, Wx_Command_Gpt, Wx_Command_Spark, Wx_Command_Qwen, Wx_Command_Gemini}
+    Wx_Commands = []string{Wx_Command_Help, Wx_Command_Gpt, Wx_Command_Spark, Wx_Command_Qwen, Wx_Command_Zhipu, Wx_Command_Baidu, Wx_Command_GetModel}
 )
 
 func GetWxToken() string {
-	return os.Getenv(Wx_Token_key)
+    return os.Getenv(Wx_Token_key)
 }
+
 func GetWxAppId() string {
-	return os.Getenv(Wx_App_Id_key)
+    return os.Getenv(Wx_App_Id_key)
 }
+
 func GetWxAppSecret() string {
-	return os.Getenv(Wx_App_Secret_key)
+    return os.Getenv(Wx_App_Secret_key)
 }
+
 func GetWxSubscribeReply() string {
-	subscribeMsg := os.Getenv(Wx_Subscribe_Reply_key)
-	return strings.ReplaceAll(subscribeMsg, "\\n", "\n")
+    subscribeMsg := os.Getenv(Wx_Subscribe_Reply_key)
+    return strings.ReplaceAll(subscribeMsg, "\\n", "\n")
 }
+
 func GetWxHelpReply() string {
-	helpMsg := os.Getenv(Wx_Help_Reply_key)
-	if helpMsg == "" {
-		helpMsg = "输入以下命令进行对话\n/help：查看帮助\n/gpt：与GPT对话\n/spark：与星火对话\n/qwen：与通义千问对话\n/gemini：与gemini对话\n" +
-			"/prompt 你的prompt: 设置system prompt\n/getpt: 获取当前设置prompt\n/cpt: 清除当前设置prompt\n" +
-			"/setmodel model: 设置自定义model\n/setmodel: 重置model为默认值\n/getmodel: 获取当前model\n" +
-			"/clear:清除历史对话\n" + "/ta 代办事项1:设置todo\n" + "/tl:获取代办列表\n" + "/td 2:删除索引代办事件\n" + "/cb 代币对:查询价格"
-	}
-	return strings.ReplaceAll(helpMsg, "\\n", "\n")
+    helpMsg := "输入以下命令进行对话\n" +
+        "/1：查看帮助\n" +
+        "/2：与GPT对话\n" +
+        "/3：与讯飞星火对话\n" +
+        "/4: 与通义千问对话\n" +
+        "/5: 与智谱清言对话\n" +
+        "/6: 与百度文心一言对话\n" +
+        "/7: 告诉我当前是哪个模型跟我聊天"
+    
+    return strings.ReplaceAll(helpMsg, "\\n", "\n")
 }
+
 func GetWxEventKeyChatGpt() string {
-	return os.Getenv(Wx_Event_Key_Chat_Gpt_key)
+    return os.Getenv(Wx_Event_Key_Chat_Gpt_key)
 }
+
 func GetWxEventKeyChatSpark() string {
-	return os.Getenv(Wx_Event_Key_Chat_Spark_key)
+    return os.Getenv(Wx_Event_Key_Chat_Spark_key)
 }
+
 func GetWxEventKeyChatQwen() string {
-	return os.Getenv(Wx_Event_Key_Chat_Qwen_key)
+    return os.Getenv(Wx_Event_Key_Chat_Qwen_key)
 }
 
 func GetBotWelcomeReply(botType string) string {
-	switch botType {
-	case Bot_Type_Gpt:
-		return GetGptWelcomeReply()
-	case Bot_Type_Gemini:
-		return GetGeminiWelcomeReply()
-	case Bot_Type_Spark:
-		return GetSparkWelcomeReply()
-	case Bot_Type_Qwen:
-		return GetQwenWelcomeReply()
-	}
-
-	return botType
+    switch botType {
+    case Bot_Type_Gpt:
+        return GetGptWelcomeReply()
+    case Bot_Type_Gemini:
+        return GetGeminiWelcomeReply()
+    case Bot_Type_Spark:
+        return GetSparkWelcomeReply()
+    case Bot_Type_Qwen:
+        return GetQwenWelcomeReply()
+    }
+    return botType
 }
