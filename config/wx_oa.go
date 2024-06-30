@@ -16,6 +16,18 @@ const (
 	Wx_Event_Key_Chat_Spark_key = "AI_CHAT_SPARK"
 	Wx_Event_Key_Chat_Qwen_key  = "AI_CHAT_QWEN"
 
+	Wx_Command_Gemini    = "/gemini"
+	Wx_Command_Prompt    = "/prompt"
+	Wx_Command_RmPrompt  = "/cpt"
+	Wx_Command_GetPrompt = "/getpt"
+	Wx_Command_SetModel  = "/setmodel"
+	Wx_Command_Clear     = "/clear"
+
+	Wx_Todo_Add  = "/ta"
+	Wx_Todo_Del  = "/td"
+	Wx_Todo_List = "/tl"
+
+	Wx_Coin = "/cb"
 	    Wx_Command_Help   = "/1"
 	    Wx_Command_Gpt    = "/2"
 	    Wx_Command_Spark  = "/3"
